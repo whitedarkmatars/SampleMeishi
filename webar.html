@@ -1,0 +1,515 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.133.1/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.133.1/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* --- ローディングモーダル --- */
+    .loading-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20,30,34,0.92);
+      transition: opacity 0.7s;
+    }
+    .loading-modal.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-bg {
+      position: absolute;
+      inset: 0;
+      background: #222 url('./assets/images/LoadingBG.png') center center no-repeat;
+      background-size: auto 100vh;
+      z-index: 1;
+      opacity: 1;
+    }
+    .loading-modal video {
+      z-index: 2;
+      width: 80vw;
+      max-width: 650px;
+      height: auto;
+      max-height: 260px;
+      background: transparent;
+      display: block;
+      pointer-events: none;
+    }
+    /* --- モデル読み込み時のローディング --- */
+    .model-loading-notice {
+      display: none;
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 3000;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 16px 40px;
+      border-radius: 4px;
+      font-size: 1.1em;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+      pointer-events: none;
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
+    .loading-text {
+      animation: text-blink 1s infinite;
+    }
+    /* 文字点灯アニメーション */
+    @keyframes text-blink {
+      0%   { opacity: 1; filter: brightness(1); }
+      50%  { opacity: 0.2; filter: brightness(2); }
+      100% { opacity: 1; filter: brightness(1); }
+    }
+    /* --- スキャンUI --- */
+    .scanning-ui {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 75vw; /* 画面幅の75% */
+      aspect-ratio: 774 / 468; /* 画像に応じて調整（例：774 / 468） */
+      z-index: 999;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    /* オーバーレイ画像 */
+    .scan-overlay {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.8;
+    }
+    /* スキャンライン */
+    .scan-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.8);
+      z-index: 2;
+      animation: scanning 2s linear infinite;
+    }
+    /* アニメーション（ガイド枠内だけを上下） */
+    @keyframes scanning {
+      0% { top: 0px; }
+      50% { top: 100%; }
+      100% { top: 0px; }
+    }
+    .action-menu-area {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: 80vw;
+      max-width: 600px;
+      z-index: 1200;
+      pointer-events: none;
+    }
+    .action-menu-img {
+      width: 100%;
+      display: block;
+    }
+    .action-seg {
+      position: absolute;
+      pointer-events: auto;
+      background:rgba(255, 0, 0, 0); /* デバッグ時は(255,0,0,0.25)で領域が見える */
+    }
+    .seg1 { left: 10%;  top: 45.5%; width: 22%; height: 48.5%; }
+    .seg2 { left: 39%; top: 15.5%; width: 22%; height: 48.5%; }
+    .seg3 { left: 68%; top: 45.5%; width: 22%; height: 48.5%; }
+
+    .sns-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+    }
+    .sns-modal.active {
+      display: flex;
+    }
+    .sns-modal-card {
+      background: #042b35;
+      border-radius: 16px;
+      box-shadow: 0 0 10px #1d6364dc, 0 0 10px 1px #1d6364bb;
+      border: 2px solid #1d6364bb;
+      padding: 40px 38px 34px 38px;
+      width: 86vw;
+      max-width: 360px;
+      min-width: 180px;
+      text-align: center;
+      box-sizing: border-box;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    }
+    .sns-modal-card::before {
+      content: "";
+      position: absolute;
+      top: 4px; left: 4px; right: 4px; bottom: 4px;
+      border-radius: 12px;
+      border: 2px solid #277a73;
+      pointer-events: none;
+      box-shadow: 0 0 8px #277a73aa;
+      z-index: 3;
+    }
+    .sns-modal-message {
+      color: #fff;
+      font-size: 1.15em;
+      font-family: inherit;
+      margin-bottom: 22px;
+      letter-spacing: 0.05em;
+      font-weight: bold;
+    }
+    .sns-modal-buttons {
+      margin-top: 20px;
+      display: flex;
+      gap: 28px;
+      width: 100%;
+      justify-content: center;
+    }
+    .sns-btn {
+      width: 96px;
+      height: 44px;
+      background: #073d40;
+      border: 3px solid #0e9b92;
+      border-radius: 13px;
+      color: #ffffff;
+      font-size: 1.08em;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 0 8px #27c7bc44;
+      transition: background 0.13s, color 0.13s, box-shadow 0.13s;
+      outline: none;
+      margin: 0 4px;
+      font-family: inherit;
+      backdrop-filter: blur(1px);
+    }
+    .sns-btn:active,
+    .sns-btn:hover {
+      background: rgba(30,108,110,0.85);
+      color: #fff;
+      box-shadow: 0 0 12px #27c7bc88;
+    }
+  </style>
+</head>
+<body>
+  <p style="position: fixed; top: 10px; left: 10px; z-index: 1000; color: white;">Ver.1.0.0</p>
+
+  <!-- ローディングモーダル -->
+  <div class="loading-modal" id="loadingModal">
+    <!-- p style="position: fixed; top: 10px; left: 10px; z-index: 1000; color: white;">Ver.2.1.0</p -->
+    <div class="loading-bg"></div>
+    <video
+      id="loadingVideo"
+      src="./assets/videos/LoadingAni.mp4"
+      width="650"
+      height="260"
+      preload="auto"
+      playsinline
+      muted
+      tabindex="-1"
+      poster=""
+      autoplay
+    ></video>
+  </div>
+
+  <!-- モデル読み込み時のローディング -->
+  <div id="modelLoadingNotice" class="model-loading-notice">
+    <span class="loading-text">Loading...</span>
+  </div>
+
+  <div class="action-menu-area">
+    <img src="./assets/images/ActionMenu1.png" class="action-menu-img" alt="ActionMenu1" />
+    <div class="action-seg seg1"></div>
+    <div class="action-seg seg2"></div>
+    <div class="action-seg seg3"></div>
+  </div>
+
+  <div id="container"></div>
+
+  <!-- スキャンUI -->
+  <div class="scanning-ui" id="scanning">
+    <img src="./assets/guide/scan-overlay.png" class="scan-overlay" />
+    <div class="scan-line"></div>
+  </div>
+  
+  <!-- SNS遷移確認モーダル -->
+  <div id="snsModal" class="sns-modal">
+    <div class="sns-modal-card">
+      <p class="sns-modal-message">Xに移動しますか？TT</p>
+      <div class="sns-modal-buttons">
+        <button id="snsYes" class="sns-btn">はい</button>
+        <button id="snsNo" class="sns-btn">いいえ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- ローディングモーダル進捗制御 ---
+    const video = document.getElementById('loadingVideo');
+    const modal = document.getElementById('loadingModal');
+
+    // 進捗同期関数（0〜1）
+    function setLoadingProgress(progress) {
+      if (video.readyState >= 1 && video.duration) {
+        video.currentTime = progress * video.duration;
+      }
+    }
+
+    // フェードアウト
+    function hideLoadingModal() {
+      modal.classList.add('fade-out');
+      setTimeout(() => modal.style.display = 'none', 800);
+    }
+
+    // 動画初期化
+    video.addEventListener('loadedmetadata', () => {
+      video.currentTime = 0;
+      video.pause();
+      setLoadingProgress(0);
+    });
+
+    // 「再生開始」を検知
+    video.addEventListener('play', () => {
+      // 必ず5秒後にローディングを消す（この5秒は動画の長さに合わせる）
+      setTimeout(hideLoadingModal, 5000);
+    });
+
+    // GLTFロードが終わったら動画再生開始
+    function onModelLoaded() {
+      if (video.readyState >= 2) { // HAVE_CURRENT_DATA以上
+        video.currentTime = 0;
+        video.muted = true;
+        video.play();
+      } else {
+        // 動画の読み込みが遅れている場合も考慮
+        video.addEventListener('canplay', function handler() {
+          video.removeEventListener('canplay', handler);
+          video.currentTime = 0;
+          video.muted = true;
+          video.play();
+        });
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+          container: document.querySelector("#container"),
+          imageTargetSrc: "./assets/target/targets.mind",
+          uiScanning: true,
+          uiLoading: true,
+        });
+
+        const {renderer, scene, camera} = mindarThree;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+
+        const light = new THREE.AmbientLight(0xffffff, 1.0);
+        scene.add(light);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(0, 1, 1);
+        scene.add(directionalLight);
+
+        const anchor = mindarThree.addAnchor(0);
+        const scanningUI = document.getElementById('scanning');
+        const loader = new THREE.GLTFLoader();
+
+        // アニメーション再生用mixer・clock
+        let mixer = null;
+        const clock = new THREE.Clock();
+
+        // 現在表示しているモデル
+        let currentModel = null;
+        window.sceneObj = null; // 最新モデルを常にグローバルへ
+
+        // モデル切り替え
+        function loadAvatarModel(glbPath) {
+          // 既存モデルを即座に消す
+          if (currentModel && anchor.group.children.includes(currentModel)) {
+            anchor.group.remove(currentModel);
+            currentModel = null;
+            window.sceneObj = null;
+          }
+
+          // ローディング案内を表示
+          document.getElementById('modelLoadingNotice').style.display = 'block';
+
+          loader.load(
+            glbPath,
+            (gltf) => {
+              const model = gltf.scene;
+              model.position.set(0, 0, 0);
+              model.rotation.set(Math.PI * 0.5, Math.PI * 0, Math.PI * 0);
+              model.scale.set(0.5, 0.5, 0.5);
+              anchor.group.add(model);
+              currentModel = model;
+              window.sceneObj = model;
+
+              // アニメーション再生処理
+              if (gltf.animations && gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(model);
+                gltf.animations.forEach((clip) => {
+                  mixer.clipAction(clip).play();
+                });
+              } else {
+                mixer = null;
+              }
+
+              // ローディング案内を消す
+              document.getElementById('modelLoadingNotice').style.display = 'none';
+
+              // 初回ロード時の処理
+              onModelLoaded();
+            },
+            (xhr) => {
+              let progress = xhr.loaded / xhr.total;
+              setLoadingProgress(progress);
+            },
+            (error) => {
+              document.getElementById('modelLoadingNotice').textContent = "Failed to load model...";
+              console.error('3Dモデルの読み込み中にエラー:', error);
+            }
+          );
+        }
+
+        // 最初の表示：AvatarModel1
+        loadAvatarModel('./assets/models/AvatarModel1.glb');
+
+        // seg1/seg2タップでモデル切り替え
+        document.querySelector('.seg1').addEventListener('pointerdown', () => {
+          loadAvatarModel('./assets/models/AvatarModel1.glb');
+        });
+        document.querySelector('.seg2').addEventListener('pointerdown', () => {
+          loadAvatarModel('./assets/models/AvatarModel2.glb');
+        });
+        // seg3タップ時の動作変更
+        document.querySelector('.seg3').addEventListener('pointerdown', () => {
+          document.getElementById('snsModal').classList.add('active');
+        });
+        // 「はい」ボタン
+        document.getElementById('snsYes').addEventListener('click', () => {
+          window.open('https://x.com/r_tkbyc', '_blank'); // 新しいタブで開く
+          // location.href = 'https://x.com/r_tkbyc'; // 同じタブで遷移したい場合はこちら
+          document.getElementById('snsModal').classList.remove('active');
+        });
+        // 「いいえ」ボタン
+        document.getElementById('snsNo').addEventListener('click', () => {
+          document.getElementById('snsModal').classList.remove('active');
+        });
+
+        // ドラッグで回転
+        let dragging = false;
+        let lastX = 0, lastY = 0;
+        window.addEventListener('touchstart', function(e) {
+          if (e.touches.length === 1) {
+            dragging = true;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+          }
+        });
+        window.addEventListener('touchmove', function(e) {
+          if (!dragging || !window.sceneObj) return;
+          let deltaX = e.touches[0].clientX - lastX;
+          let deltaY = e.touches[0].clientY - lastY;
+          window.sceneObj.rotation.y += deltaX * 0.01;
+          window.sceneObj.rotation.x += deltaY * 0.01;
+          lastX = e.touches[0].clientX;
+          lastY = e.touches[0].clientY;
+          e.preventDefault();
+        }, { passive: false });
+        window.addEventListener('touchend', function(e) {
+          dragging = false;
+        });
+
+        // ピンチ拡大縮小
+        let pinchStartDist = null;
+        let startScale = 0.5;
+        window.addEventListener('touchstart', function(e) {
+          if (e.touches.length === 2 && window.sceneObj) {
+            pinchStartDist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            startScale = window.sceneObj.scale.x;
+          }
+        });
+        window.addEventListener('touchmove', function(e) {
+          if (e.touches.length === 2 && pinchStartDist && window.sceneObj) {
+            let dist = Math.hypot(
+              e.touches[0].clientX - e.touches[1].clientX,
+              e.touches[0].clientY - e.touches[1].clientY
+            );
+            let scale = startScale * (dist / pinchStartDist);
+            scale = Math.max(0.2, Math.min(3.0, scale));
+            window.sceneObj.scale.set(scale, scale, scale);
+            e.preventDefault();
+          }
+        }, { passive: false });
+        window.addEventListener('touchend', function(e) {
+          if (e.touches.length < 2) pinchStartDist = null;
+        });
+
+        // スキャンUIの出し入れ
+        anchor.onTargetFound = () => {
+          scanningUI.style.display = 'none';
+        };
+        anchor.onTargetLost = () => {
+          scanningUI.style.display = 'block';
+        };
+
+        await mindarThree.start();
+        scanningUI.style.display = 'block';
+
+        // アニメーション用mixerの更新も追加
+        renderer.setAnimationLoop(() => {
+          if (mixer) mixer.update(clock.getDelta());
+          renderer.render(scene, camera);
+        });
+
+        window.addEventListener('beforeunload', () => {
+          mindarThree.stop();
+        });
+
+      } catch (error) {
+        console.error('WebARの初期化中にエラーが発生:', error);
+        hideLoadingModal();
+      }
+    });
+  </script>
+</body>
+</html>

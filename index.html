@@ -1,0 +1,111 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>WebARご利用案内</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      min-width: 100vw;
+      background: #222 url('./assets/images/LoadingBG.png') center center no-repeat;
+      background-size: auto 100vh;
+      background-attachment: fixed;
+      color: #fff;
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .card {
+      background: #042b35;
+      border-radius: 16px;
+      box-shadow: 0 0 16px #1d6364dc, 0 0 16px 1px #1d6364bb;
+      border: 2px solid #1d6364bb;
+      position: relative;
+      padding: 42px 38px 38px 38px;
+      width: 90vw;
+      max-width: 400px;
+      min-width: 220px;
+      text-align: center;
+      margin: 0 auto;
+      z-index: 2;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 4px; left: 4px; right: 4px; bottom: 4px;
+      border-radius: 12px;
+      border: 2px solid #277a73;
+      pointer-events: none;
+      box-shadow: 0 0 8px #277a73aa;
+      z-index: 3;
+    }
+    .card h2 {
+      font-size: 1.5em;
+      margin: 0 0 16px 0;
+    }
+    .card p {
+      font-size: 1.12em;
+      line-height: 1.6;
+      margin: 0 0 10px 0;
+    }
+    .card ul {
+      font-size: 1.12em;
+      line-height: 1.6;
+      list-style: disc outside;
+      padding-left: 1.5em;
+      margin: 0 0 18px 0;
+      text-align: left;
+      align-self: flex-start;
+    }
+    .card button {
+      width: 80vw;
+      max-width: 340px;
+      min-width: 120px;
+      height: 56px;
+      background: #073d40;
+      border: 5px solid #0e9b92;
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 1.25em;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      text-align: center;
+      margin: 32px 0 0 0;
+      cursor: pointer;
+      box-shadow: 0 0 12px #27c7bc44;
+      transition: background 0.16s, color 0.16s, box-shadow 0.16s;
+      outline: none;
+      display: block;
+      backdrop-filter: blur(2px);
+    }
+    .card button:active,
+    .card button:hover {
+      background: rgba(30,108,110,0.85);
+      color: #fff;
+      box-shadow: 0 0 18px #27c7bc88;
+    }
+  </style>
+</head>
+<body>
+  <p style="position: fixed; top: 10px; left: 10px; z-index: 1000; color: white;">Ver.1.0.0</p>
+  <div class="card">
+    <h2>WebARご利用案内</h2>
+    <p>このWebAR体験では、<br><strong>カメラ</strong>や<strong>位置情報</strong>など、アクセス許可が必要です。</p>
+    <ul>
+      <li>カメラを許可しないとAR体験はご利用いただけません</li>
+<li>周囲の安全に十分ご注意ください</li>
+<li>スマートフォンを<strong>縦向き</strong>でご利用ください</li>
+
+    </ul>
+    <button onclick="location.href='webar.html'">OK・利用を開始する</button>
+  </div>
+</body>
+</html>
